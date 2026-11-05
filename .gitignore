@@ -1,0 +1,22 @@
+# Python / virtual environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment files / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Copyrighted book (keep local copy only, never track)
+*z-library*
