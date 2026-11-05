@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>K-Means clustering: the complete interactive guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f8fb;--ink:#151922;--mut:#667085;--line:#dde2ea;--pn:#fff;--c0:#2f6fed;--c1:#0f9d8a;--c2:#d98a00;--c3:#8b4fd8;--c4:#d6456b;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11151b;--ink:#e8ebf0;--mut:#9aa4b4;--line:#2a313c;--pn:#181d25;--c0:#6b9bff;--c1:#3cc6b1;--c2:#f0b13a;--c3:#b58cf0;--c4:#f07a99;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11151b;--ink:#e8ebf0;--mut:#9aa4b4;--line:#2a313c;--pn:#181d25;--c0:#6b9bff;--c1:#3cc6b1;--c2:#f0b13a;--c3:#b58cf0;--c4:#f07a99;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 "Hanken Grotesk",system-ui,sans-serif}
+main{max-width:860px;margin:0 auto;padding:0 20px 80px}
+nav{display:flex;flex-wrap:wrap;gap:6px 16px;padding:20px 0;font-size:14px}
+nav a{color:var(--mut);text-decoration:none}nav a:hover{color:var(--ink)}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.05;letter-spacing:-.03em;font-weight:800;margin:28px 0 14px;max-width:15ch}
+h2{font-size:28px;letter-spacing:-.02em;margin:72px 0 8px;line-height:1.2}
+h3{font-size:18px;margin:22px 0 4px}
+p,li{max-width:68ch}p{margin:10px 0}
+.lead{font-size:20px;color:var(--mut)}
+.fig{background:var(--pn);border:1px solid var(--line);border-radius:10px;padding:16px;margin:18px 0}
+.row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:8px 0}
+button,select{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--pn);color:var(--ink);padding:6px 12px;border-radius:6px;cursor:pointer}
+button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+:is(button,select,input,summary):focus-visible{outline:2px solid var(--c0);outline-offset:2px}
+input[type=range]{accent-color:var(--c0);width:170px}
+svg{width:100%;height:auto;display:block}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:640px){.g2{grid-template-columns:1fr}}
+.note{border-left:3px solid var(--c0);padding:2px 14px;color:var(--mut);margin:14px 0;max-width:68ch}
+.out{font-size:15px;color:var(--mut);min-height:1.6em;margin:6px 0 0}
+table{border-collapse:collapse;width:100%;font-size:15px}td,th{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left}
+.sw{overflow-x:auto}
+pre{background:var(--pn);border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font:13px/1.5 ui-monospace,Menlo,monospace;margin:8px 0}
+details{margin:10px 0}summary{cursor:pointer;font-weight:600}
+svg text{fill:var(--mut);font-size:11px}
+.bar{height:14px;border-radius:4px;background:var(--c0);margin:4px 0}
+a{color:var(--c0)}
+</style></head><body><main>
+<nav><a href="#intro">Unsupervised</a><a href="#idea">K-Means idea</a><a href="#voronoi">Regions</a><a href="#steps">Algorithm</a><a href="#hand">By hand</a><a href="#math">Math</a><a href="#init">Initialisation</a><a href="#pickk">Choosing k</a><a href="#scale">Scaling</a><a href="#limits">Limits</a><a href="#code">Python</a><a href="#quiz">Quiz</a></nav>
+<h1>K-Means clustering: the complete interactive guide</h1>
+<p class="lead">Start with what unsupervised learning is, then take K-Means apart piece by piece: geometry, the loop, the maths, initialisation, choosing k, scaling, failure cases and code. Everything is live.</p>
+<p>Based on the lesson at <a href="https://youtu.be/Aa4MACKaDC0">youtu.be/Aa4MACKaDC0</a>, with extra worked examples. Demo data is generated in your browser.</p>
+
+<h2 id="intro">Part 1: unsupervised learning</h2>
+<p>Supervised learning has features (f1, f2, …) <b>and an output column</b> (the dependent feature) that you predict: linear regression, logistic regression, decision trees, boosting, Random Forest and SVM all do this. In <b>unsupervised learning</b> there is no output column. You are not predicting anything; you look for structure in the features. The most common task is <b>clustering</b>: put similar rows in the same group.</p>
+<h3>Three common clustering methods</h3>
+<ul><li><b>K-Means:</b> Divides data into a chosen number (k) of clusters by grouping points around their nearest centroid.</li><li><b>Hierarchical clustering:</b> Builds a hierarchy of clusters by repeatedly merging nearby groups or splitting larger ones.</li><li><b>DBSCAN:</b> Groups closely packed points based on data density and marks isolated points as noise or outliers.</li></ul>
+<div class="fig"><div class="row"><button class="on" onclick="tab(0,this)">Supervised</button><button onclick="tab(1,this)">Unsupervised</button></div><div class="sw"><table id="tb"></table></div><p class="out" id="tbo"></p></div>
+<h3>Where clustering is used</h3>
+<ul><li><b>Customer segmentation</b> (the video’s example, below).</li><li><b>Document or news grouping</b> by topic.</li><li><b>Image colour compression</b>: replace millions of colours with k representative ones.</li><li><b>Anomaly spotting</b>: points far from every centroid are unusual.</li></ul>
+<h3>Example: the iPhone discount</h3>
+<p>An online store has two features per customer: salary and spending score (1 to 10). It is launching a ₹1.5 lakh phone and wants to decide who gets a discount. No “right answer” column exists, so it clusters the customers.</p>
+<div class="fig"><div class="row" id="b1"><button class="on" onclick="setS(null,this)">Raw points</button><button onclick="setS(-1,this)">Find groups</button><button onclick="setS(0,this)">Low pay, high spend</button><button onclick="setS(1,this)">High pay, high spend</button><button onclick="setS(2,this)">High pay, low spend</button><button onclick="setS(3,this)">Low pay, low spend</button></div><div id="s1"></div><p class="out" id="s1t"></p></div>
+<p>Each group gets its own offer (the video mentions discounts such as 5%, 10% and 20%) instead of one blanket discount. K-Means is one of three clustering techniques in the series, next to hierarchical clustering and DBSCAN; this guide covers only K-Means.</p>
+
+<h2 id="idea">Part 2: the K-Means idea</h2>
+<p>K-Means groups points into <b>k clusters</b>. Each cluster is summarised by its centre, the <b>centroid</b> (the mean of its points). A point belongs to the cluster whose centroid is nearest. The name says it all: <b>K</b> clusters, each defined by a <b>mean</b>.</p>
+<table><tr><th>Term</th><th>Meaning</th></tr><tr><td>k</td><td>Number of clusters you ask for</td></tr><tr><td>Centroid</td><td>Mean position of a cluster’s points</td></tr><tr><td>Assignment</td><td>Which centroid each point is closest to</td></tr><tr><td>WCSS / inertia</td><td>Sum of squared distances from points to their own centroid</td></tr><tr><td>Convergence</td><td>Centroids stop moving between iterations</td></tr></table>
+
+<h2 id="voronoi">The geometry: perpendicular bisectors</h2>
+<p>Between any two centroids, the points equally far from both lie on a line: the <b>perpendicular bisector</b> of the segment joining them. Everything on one side joins one centroid, everything on the other side joins the other. With several centroids these lines carve the plane into regions (a Voronoi diagram). Click the plane to add centroids and watch the regions redraw.</p>
+<div class="fig"><div class="row"><button onclick="vAdd()">Add random centroid</button><button onclick="vUndo()">Remove last</button><span class="out">or click the plane</span></div><div id="v1"></div></div>
+
+<h2 id="steps">Part 3: the algorithm, step by step</h2>
+<ol><li><b>Initialise</b> k centroids.</li><li><b>Assign</b> every point to its nearest centroid.</li><li><b>Update</b> each centroid to the mean of its assigned points.</li><li>Repeat 2 and 3 until the centroids stop moving (or barely move).</li></ol>
+<div class="fig"><div class="row"><label>k <select id="kk" onchange="tReset()"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></label><label>Start <select id="ii" onchange="tReset()"><option value="rr">Random</option><option value="pp">K-Means++</option></select></label><button onclick="tStep()">Step</button><button onclick="tRun()">Run to the end</button><button onclick="tReset()">Re-roll</button></div>
+<div class="g2"><div id="t1"></div><div id="t2"></div></div><p class="out" id="t1o"></p></div>
+<p class="note">Each full iteration can only lower WCSS or leave it unchanged, so the right chart always steps downward and the algorithm is guaranteed to stop. The big circles are centroids.</p>
+
+<h2 id="hand">Worked example: six points, by hand</h2>
+<p>Points A(1,1), B(2,2), C(1,3), D(7,6), E(8,7), F(8,5). Start with centroids C1 = A and C2 = B (a poor start). Press Next to run one assign-and-update round; distances are Euclidean.</p>
+<div class="fig"><div class="row"><button onclick="hNext()">Next iteration</button><button onclick="hReset()">Reset</button></div><div class="sw" id="hw"></div><p class="out" id="hwo"></p></div>
+
+<h2 id="math">Part 4: the maths</h2>
+<p><b>Distance.</b> Euclidean for points (x1, y1) and (x2, y2): d = √((x2 − x1)² + (y2 − y1)²). Manhattan: d = |x2 − x1| + |y2 − y1|. K-Means uses Euclidean distance.</p>
+<div class="fig"><div class="row"><label>x1 <input id="x1" type="range" min="0" max="10" value="1" oninput="dsDraw()"></label><label>y1 <input id="y1" type="range" min="0" max="10" value="1" oninput="dsDraw()"></label><label>x2 <input id="x2" type="range" min="0" max="10" value="7" oninput="dsDraw()"></label><label>y2 <input id="y2" type="range" min="0" max="10" value="5" oninput="dsDraw()"></label></div><div style="max-width:420px"><div id="ds"></div></div><p class="out" id="dso"></p></div>
+<p><b>Update rule.</b> The new centroid of cluster j is the mean of its points: μⱼ = (1 / |Cⱼ|) · Σ x for x in Cⱼ.</p>
+<p><b>Objective.</b> K-Means tries to minimise WCSS = Σⱼ Σ over x in Cⱼ of ‖x − μⱼ‖². Assigning to the nearest centroid minimises it for fixed centroids; moving centroids to the mean minimises it for fixed assignments. Alternating the two can only go down, but it may settle in a <b>local</b> minimum, which is why initialisation matters. Cost per iteration is about n × k × d distance operations, so it scales to big data.</p>
+
+<h2 id="init">Part 5: the random initialisation trap</h2>
+<p>If two random starting centroids land in the same blob, the final result can split one real group in two and merge two others. Choose <b>Random</b> in the stepper above and Re-roll to see it happen. <b>K-Means++</b> picks the first centroid at random, then picks each next one with probability proportional to its squared distance from the nearest centroid already chosen, so the starting centroids end up far apart. Compare them over many runs:</p>
+<div class="fig"><div class="row"><button onclick="trials()">Run 40 trials each (k = 3)</button></div><div id="tr"></div><p class="out" id="tro"></p></div>
+
+<h2 id="pickk">Part 6: choosing k</h2>
+<p>Try k = 1, 2, 3 and so on, and record WCSS for each. WCSS is highest at k = 1 (one centroid, long distances) and keeps falling as k grows, then flattens. The bend is the <b>elbow</b>: pick that k. Always check it against the <b>silhouette score</b>. For a point, a = average distance to its own cluster, b = average distance to the nearest other cluster, and s = (b − a) / max(a, b), between −1 and +1. In the video’s data WCSS falls from about 35,000 at k = 1 and bends at k = 3, where the silhouette is also highest (above 0.8).</p>
+<div class="fig"><div class="row"><label>k <input id="ek" type="range" min="1" max="8" value="3" oninput="eDraw()"></label><span class="out" id="eo"></span></div><div class="g2"><div id="e1"></div><div id="e2"></div></div></div>
+<h3>What s means for one point</h3>
+<div class="fig"><div class="row"><label>a <input id="sa" type="range" min=".1" max="5" step=".1" value="1" oninput="sDraw()"></label><label>b <input id="sb" type="range" min=".1" max="5" step=".1" value="4" oninput="sDraw()"></label></div><div id="s2"></div><p class="out" id="s2o"></p></div>
+<p>Small a and large b: tight, well separated (near +1). a ≈ b: overlapping (near 0). a larger than b: probably in the wrong cluster (near −1). In scikit-learn, the elbow can be found automatically with KneeLocator (curve convex, direction decreasing).</p>
+
+<h2 id="scale">Part 7: scale your features first</h2>
+<p>K-Means is all distances, so a feature with big numbers dominates. Salary in rupees (20,000 to 150,000) dwarfs a spending score of 1 to 10. Standardise each feature (subtract the mean, divide by the standard deviation) before clustering, fitting the scaler on the training data only.</p>
+<div class="fig"><div class="row"><button class="on" onclick="scM(0,this)">Raw salary and score</button><button onclick="scM(1,this)">Standardised</button></div><div id="sc"></div><p class="out" id="sco"></p></div>
+
+<h2 id="limits">Part 8: where K-Means struggles</h2>
+<ul><li><b>You must choose k</b> (elbow, silhouette).</li><li><b>Round blobs only:</b> it separates clusters with straight lines.</li><li><b>Outliers</b> drag centroids, because the mean is sensitive.</li><li><b>Local minima:</b> use K-Means++ and several restarts.</li></ul>
+<div class="fig"><div class="row"><button class="on" onclick="rgM(0,this)">K-Means, k = 2</button><button onclick="rgM(1,this)">The real rings</button></div><div style="max-width:380px"><div id="rg"></div></div><p class="out" id="rgo"></p></div>
+<p>For ring-shaped or noisy data, a density method such as DBSCAN does better; that is a different lesson.</p>
+
+<h2 id="code">Part 9: Python</h2>
+<details open><summary>K-Means from scratch (NumPy)</summary><pre>import numpy as np
+def kmeans(X, k, iters=100, seed=0):
+    rng = np.random.default_rng(seed)
+    C = X[rng.choice(len(X), k, replace=False)]              # 1. initialise
+    for _ in range(iters):
+        d = np.linalg.norm(X[:, None] - C[None], axis=2)      # distance to each centroid
+        labels = d.argmin(axis=1)                             # 2. assign
+        new = np.array([X[labels == j].mean(axis=0) if (labels == j).any() else C[j]
+                        for j in range(k)])                   # 3. update
+        if np.allclose(new, C): break
+        C = new
+    return labels, C, ((X - C[labels]) ** 2).sum()            # WCSS</pre></details>
+<details open><summary>scikit-learn: data, elbow, automatic k, predict</summary><pre>from sklearn.datasets import make_blobs
+from sklearn.cluster import KMeans
+from kneed import KneeLocator          # pip install kneed
+
+X, _ = make_blobs(n_samples=1000, n_features=2, centers=3, random_state=23)  # ignore y
+# split first, then scale: fit the scaler on X_train, transform X_test
+wcss = []
+for k in range(1, 11):
+    wcss.append(KMeans(n_clusters=k, init="k-means++").fit(X_train).inertia_)
+
+KneeLocator(range(1, 11), wcss, curve="convex", direction="decreasing").elbow   # 3
+model = KMeans(n_clusters=3, init="k-means++")
+train_labels = model.fit_predict(X_train)   # fit only on training data
+test_labels = model.predict(X_test)         # assign new points to learned centroids</pre></details>
+<details><summary>Silhouette score for each k</summary><pre>from sklearn.metrics import silhouette_score
+for k in range(2, 11):
+    labels = KMeans(n_clusters=k, init="k-means++").fit(X_train).labels_
+    print(k, silhouette_score(X_train, labels))   # highest at k = 3; closer to +1 is better</pre></details>
+
+<h2 id="quiz">Part 10: check yourself</h2>
+<div class="fig" id="qz"></div>
+<h3>Common questions</h3>
+<details><summary>Is K-Means supervised?</summary><p>No. There is no target column; labels come from the algorithm itself.</p></details>
+<details><summary>Does it always find the best clustering?</summary><p>No. It always converges, but possibly to a local minimum. Use K-Means++ and several restarts and keep the lowest WCSS.</p></details>
+<details><summary>What if a cluster ends up empty?</summary><p>Implementations keep the old centroid, re-seed it at the farthest point, or restart.</p></details>
+<details><summary>Why does WCSS always fall as k grows?</summary><p>More centroids means every point can sit closer to one. That is why you look for the elbow, not the minimum.</p></details>
+<h3>Cheat sheet</h3>
+<ul><li>Initialise (K-Means++), assign to nearest centroid, move centroid to the mean, repeat.</li><li>Pick k with the elbow of WCSS and confirm with the silhouette score.</li><li>Scale features first; expect round, similar-sized clusters.</li><li>fit_predict on training data, predict on new data.</li></ul>
+</main>
+<script>
+const $=i=>document.getElementById(i),col=l=>l<0?'var(--mut)':`var(--c${l%5})`,dst=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296},gs=r=>Math.sqrt(-2*Math.log(1-r()))*Math.cos(6.2832*r());
+function fr(P,w,h,d,pd=22){const x=P.map(p=>p[0]),y=P.map(p=>p[1]),[a,b,c,e]=d||[Math.min(...x),Math.max(...x),Math.min(...y),Math.max(...y)];return{x:v=>pd+(v-a)/(b-a)*(w-2*pd),y:v=>h-pd-(v-c)/(e-c)*(h-2*pd),w,h}}
+const sv=(f,s)=>`<svg viewBox="0 0 ${f.w} ${f.h}" role="img">${s}</svg>`,
+ax=(f,xl,yl)=>`<path d="M22 ${f.h-22}H${f.w-8}M22 ${f.h-22}V10" stroke="var(--line)" fill="none"/><text x="${f.w-8}" y="${f.h-6}" text-anchor="end">${xl}</text><text x="26" y="16">${yl}</text>`,
+dots=(P,L,f,r=3.4)=>P.map((p,i)=>`<circle cx="${f.x(p[0]).toFixed(1)}" cy="${f.y(p[1]).toFixed(1)}" r="${r}" fill="${L?col(L[i]):'var(--mut)'}" opacity=".85"/>`).join(''),
+cen=(C,f)=>C.map((c,j)=>`<circle cx="${f.x(c[0])}" cy="${f.y(c[1])}" r="9" fill="${col(j)}" stroke="var(--ink)" stroke-width="2.5"/>`).join('');
+const sel=(b)=>b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x==b));
+// part 1
+const TB=[['<tr><th>f1</th><th>f2</th><th>f3</th><th>y (target)</th></tr><tr><td>5.1</td><td>3.5</td><td>1.4</td><td>A</td></tr><tr><td>6.7</td><td>3.1</td><td>4.7</td><td>B</td></tr>','Predict y from f1 to f3 (regression or classification).'],['<tr><th>f1</th><th>f2</th><th>f3</th><th>cluster</th></tr><tr><td>5.1</td><td>3.5</td><td>1.4</td><td>?</td></tr><tr><td>6.7</td><td>3.1</td><td>4.7</td><td>?</td></tr>','No y column. The algorithm discovers the cluster column itself.']];
+function tab(i,b){$('tb').innerHTML=TB[i][0];$('tbo').textContent=TB[i][1];sel(b)}tab(0,document.querySelector('.fig button'));
+const r2=rng(3),SP=[],SL=[],TXT=['Low salary, high spending: email them the discount. They already spend freely, so a deal tips the decision.','High salary, high spending: likely to buy anyway; a small discount or early access is enough.','High salary, low spending: they can afford it but rarely do. Only a good discount will convert them.','Low salary, low spending: least likely to buy; the video’s example does not target this group.'];
+[[2,8],[8,8],[8,2],[2,2]].forEach((c,g)=>{for(let i=0;i<22;i++){SP.push([Math.min(10,Math.max(0,c[0]+gs(r2)*.8)),Math.min(10,Math.max(0,c[1]+gs(r2)*.8))]);SL.push(g)}});
+function setS(g,b){sel(b);const f=fr(SP,560,320,[0,10,0,10]);$('s1').innerHTML=sv(f,ax(f,'Salary →','Spending score')+SP.map((p,i)=>`<circle cx="${f.x(p[0])}" cy="${f.y(p[1])}" r="4" fill="${g==null?'var(--mut)':col(SL[i])}" opacity="${g==null||g<0||SL[i]==g?.9:.12}"/>`).join(''));$('s1t').textContent=g==null?'Raw data: two features, no labels. Where would you draw the groups?':g<0?'Four natural groups appeared. Click a group to see how you might treat it.':TXT[g]}
+setS(null,document.querySelector('#b1 button'));
+// k-means core
+const kmpp=(P,k,r)=>{const C=[P[Math.floor(r()*P.length)]];while(C.length<k){const d=P.map(p=>Math.min(...C.map(c=>dst(p,c)))**2);let t=r()*d.reduce((a,b)=>a+b),i=0;while((t-=d[i])>0&&i<P.length-1)i++;C.push(P[i])}return C},
+rinit=(P,k,r)=>Array.from({length:k},()=>P[Math.floor(r()*P.length)]),
+asg=(P,C)=>P.map(p=>{let b=0,m=1e9;C.forEach((c,j)=>{const d=dst(p,c);if(d<m){m=d;b=j}});return b}),
+mov=(P,L,C)=>C.map((c,j)=>{const q=P.filter((_,i)=>L[i]==j);return q.length?[q.reduce((a,p)=>a+p[0],0)/q.length,q.reduce((a,p)=>a+p[1],0)/q.length]:c}),
+wcss=(P,L,C)=>P.reduce((s,p,i)=>s+dst(p,C[L[i]])**2,0),same=(N,C)=>N.every((c,j)=>c[0]==C[j][0]&&c[1]==C[j][1]);
+function km(P,k,seed,init=kmpp){const r=rng(seed);let C=init(P,k,r),L;for(let i=0;i<100;i++){L=asg(P,C);const N=mov(P,L,C);if(same(N,C))break;C=N}return{L,C,w:wcss(P,L,C)}}
+const best=(P,k)=>[1,2,3,4,5].map(s=>km(P,k,s)).sort((a,b)=>a.w-b.w)[0];
+const rd=rng(23),D=[];[[-5,-4],[0,6],[6,-2]].forEach(c=>{for(let i=0;i<100;i++)D.push([c[0]+gs(rd)*1.3,c[1]+gs(rd)*1.3])});
+// voronoi
+let VC=[[6,5],[18,12],[22,4]];const VF={x:v=>v*20,y:v=>v*20,w:560,h:360};
+function vDraw(){let s='';for(let i=0;i<28;i++)for(let j=0;j<18;j++){let b=0,m=1e9;VC.forEach((c,q)=>{const d=Math.hypot(c[0]-i-.5,c[1]-j-.5);if(d<m){m=d;b=q}});s+=`<rect x="${i*20}" y="${j*20}" width="20" height="20" fill="${col(b)}" opacity=".22"/>`}VC.forEach((c,q)=>s+=`<circle cx="${c[0]*20}" cy="${c[1]*20}" r="9" fill="${col(q)}" stroke="var(--ink)" stroke-width="2.5"/>`);$('v1').innerHTML=sv(VF,s)}
+const vAdd=()=>{if(VC.length<6){VC.push([Math.random()*28,Math.random()*18]);vDraw()}},vUndo=()=>{if(VC.length>1){VC.pop();vDraw()}};
+$('v1').onclick=e=>{const b=$('v1').getBoundingClientRect();if(VC.length<6){VC.push([(e.clientX-b.left)/b.width*28,(e.clientY-b.top)/b.height*18]);vDraw()}};vDraw();
+// stepper
+let T={};
+function tReset(){const k=+$('kk').value,r=rng(Math.floor(Math.random()*1e9));T={C:($('ii').value=='pp'?kmpp:rinit)(D,k,r),L:null,ph:0,it:0,done:0,h:[]};tDraw('Centroids placed. Press Step.')}
+function tStep(){if(T.done)return;if(!T.ph){T.L=asg(D,T.C);T.ph=1;T.h.push(wcss(D,T.L,T.C));tDraw('Assigned each point to its nearest centroid.')}else{const N=mov(D,T.L,T.C),s=same(N,T.C);T.C=N;T.ph=0;T.it++;T.done=s;tDraw(s?'Centroids stopped moving: converged.':'Updated each centroid to the mean of its points.')}}
+function tRun(){let g=0;while(!T.done&&g++<200)tStep()}
+function tDraw(m){const f=fr(D,420,340,[-10,11,-10,10]);$('t1').innerHTML=sv(f,ax(f,'f1','f2')+dots(D,T.L,f)+cen(T.C,f));$('t2').innerHTML=lc(T.h,'WCSS after each assignment',420,340);$('t1o').textContent=m+' Iteration '+T.it+(T.L?' · WCSS '+Math.round(wcss(D,T.L,T.C)):'')}
+function lc(v,t,w,h,mx){const f={w,h};if(!v.length)return sv(f,`<text x="10" y="20">${t}</text><text x="10" y="44">Press Step to start.</text>`);mx=mx||Math.max(...v);const P=v.map((y,i)=>[30+i*Math.min(60,(w-50)/Math.max(v.length-1,1)),h-30-y/mx*(h-60)]);return sv(f,`<text x="10" y="16">${t}</text><path d="M26 ${h-30}H${w-8}" stroke="var(--line)"/><polyline fill="none" stroke="var(--c0)" stroke-width="2" points="${P.map(p=>p.join(',')).join(' ')}"/>`+P.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--c0)"/><text x="${p[0]}" y="${h-12}" text-anchor="middle">${i+1}</text>`).join(''))}
+tReset();
+// by hand
+const HPT=[[1,1],[2,2],[1,3],[7,6],[8,7],[8,5]],NM='ABCDEF';let H;
+function hReset(){H={C:[[1,1],[2,2]],it:0,done:0};$('hw').innerHTML='<p class="out">Initial centroids: C1 = (1, 1), C2 = (2, 2).</p>';$('hwo').textContent=''}
+function hNext(){if(H.done)return;const L=asg(HPT,H.C),N=mov(HPT,L,H.C);let t='<table><tr><th>Point</th><th>d to C1</th><th>d to C2</th><th>Joins</th></tr>'+HPT.map((p,i)=>{const a=dst(p,H.C[0]),b=dst(p,H.C[1]);return`<tr><td>${NM[i]} (${p})</td><td>${a<b?'<b>'+a.toFixed(2)+'</b>':a.toFixed(2)}</td><td>${b<=a?'<b>'+b.toFixed(2)+'</b>':b.toFixed(2)}</td><td style="color:${col(L[i])}">C${L[i]+1}</td></tr>`}).join('')+'</table>';H.done=same(N,H.C);H.it++;H.C=N;$('hw').innerHTML=t;$('hwo').textContent=`Iteration ${H.it}: new C1 = (${N[0].map(v=>v.toFixed(2))}), new C2 = (${N[1].map(v=>v.toFixed(2))}).`+(H.done?' Unchanged: converged.':' Centroids moved, so go again.')}
+hReset();
+// distance
+function dsDraw(){const a=[+$('x1').value,+$('y1').value],b=[+$('x2').value,+$('y2').value],f={w:420,h:300},p=fr([[0,0],[10,10]],420,300,[0,10,0,10]);
+$('ds').innerHTML=sv(f,ax(f,'x','y')+`<path d="M${p.x(a[0])} ${p.y(a[1])}H${p.x(b[0])}V${p.y(b[1])}" stroke="var(--c2)" stroke-width="2.5" fill="none"/><path d="M${p.x(a[0])} ${p.y(a[1])}L${p.x(b[0])} ${p.y(b[1])}" stroke="var(--c0)" stroke-width="2.5"/><circle cx="${p.x(a[0])}" cy="${p.y(a[1])}" r="6" fill="var(--ink)"/><circle cx="${p.x(b[0])}" cy="${p.y(b[1])}" r="6" fill="var(--ink)"/>`);
+$('dso').textContent=`Euclidean (blue) = √(${b[0]-a[0]}² + ${b[1]-a[1]}²) = ${dst(a,b).toFixed(2)}   ·   Manhattan (orange) = ${Math.abs(b[0]-a[0])} + ${Math.abs(b[1]-a[1])} = ${Math.abs(b[0]-a[0])+Math.abs(b[1]-a[1])}`}dsDraw();
+// init trials
+function trials(){const n=40,ref=best(D,3).w,bad={r:0,p:0};for(let s=0;s<n;s++){if(km(D,3,100+s,rinit).w>ref*1.3)bad.r++;if(km(D,3,100+s,kmpp).w>ref*1.3)bad.p++}
+$('tr').innerHTML=`<p class="out">Random start</p><div class="bar" style="width:${bad.r/n*100+1}%;background:var(--c4)"></div><p class="out">K-Means++ start</p><div class="bar" style="width:${bad.p/n*100+1}%;background:var(--c1)"></div>`;$('tro').textContent=`Bad outcomes (WCSS over 30% above the best): random ${bad.r} of ${n}, K-Means++ ${bad.p} of ${n}.`}
+// elbow + silhouette
+function sil(P,L){const K=new Set(L).size;if(K<2)return null;let t=0;P.forEach((p,i)=>{const s=Array(K).fill(0),n=Array(K).fill(0);P.forEach((q,j)=>{if(j!=i){s[L[j]]+=dst(p,q);n[L[j]]++}});const a=s[L[i]]/(n[L[i]]||1);let b=1e9;s.forEach((v,c)=>{if(c!=L[i]&&n[c])b=Math.min(b,v/n[c])});t+=(b-a)/Math.max(a,b)});return t/P.length}
+const RS=[1,2,3,4,5,6,7,8].map(k=>best(D,k)),WV=RS.map(r=>r.w),SV=RS.map(r=>sil(D,r.L));
+function chart(v,s,mx,t){const f={w:270,h:190},P=v.map((y,i)=>y==null?null:[28+i*34,f.h-26-y/mx*(f.h-50),i]).filter(Boolean);return sv(f,`<text x="6" y="14">${t}</text><path d="M24 ${f.h-26}H${f.w-6}" stroke="var(--line)"/><polyline fill="none" stroke="var(--c0)" stroke-width="2" points="${P.map(p=>p[0]+','+p[1]).join(' ')}"/>`+P.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="${p[2]==s?7:3.5}" fill="${p[2]==s?'var(--c4)':'var(--c0)'}"/><text x="${p[0]}" y="${f.h-10}" text-anchor="middle">${p[2]+1}</text>`).join(''))}
+function eDraw(){const k=+$('ek').value;$('e1').innerHTML=chart(WV,k-1,WV[0],'WCSS (elbow) vs k');$('e2').innerHTML=chart(SV,k-1,1,'Silhouette vs k');$('eo').textContent=`k = ${k}: WCSS ${Math.round(WV[k-1])}`+(SV[k-1]==null?'':` · silhouette ${SV[k-1].toFixed(2)}`)}eDraw();
+function sDraw(){const a=+$('sa').value,b=+$('sb').value,s=(b-a)/Math.max(a,b),f={w:560,h:70};$('s2').innerHTML=sv(f,`<defs><linearGradient id="gr"><stop offset="0" stop-color="var(--c4)"/><stop offset=".5" stop-color="var(--line)"/><stop offset="1" stop-color="var(--c1)"/></linearGradient></defs><rect x="20" y="26" width="520" height="8" rx="4" fill="url(#gr)"/><text x="20" y="58">−1 wrong cluster</text><text x="280" y="58" text-anchor="middle">0 overlapping</text><text x="540" y="58" text-anchor="end">+1 well separated</text><circle cx="${20+(s+1)/2*520}" cy="30" r="9" fill="var(--ink)"/>`);$('s2o').textContent=`s = (${b.toFixed(1)} − ${a.toFixed(1)}) / ${Math.max(a,b).toFixed(1)} = ${s.toFixed(2)}`}sDraw();
+// scaling
+const SR=SP.map(p=>[20000+p[0]*13000,p[1]]),zs=P=>{const m=[0,1].map(d=>P.reduce((a,p)=>a+p[d],0)/P.length),s=[0,1].map(d=>Math.sqrt(P.reduce((a,p)=>a+(p[d]-m[d])**2,0)/P.length));return P.map(p=>[(p[0]-m[0])/s[0],(p[1]-m[1])/s[1]])},SCL=[best(SR,4).L,best(zs(SR),4).L];
+function scM(i,b){sel(b);const f=fr(SP,560,320,[0,10,0,10]);$('sc').innerHTML=sv(f,ax(f,'Salary (₹20k to ₹150k) →','Spending score')+dots(SP,SCL[i],f,4.5));$('sco').textContent=i?'Standardised: both features count equally, so the four real groups are recovered.':'Raw: salary’s huge numbers decide everything, so clusters are vertical salary bands and ignore spending score.'}scM(0,document.querySelector('#sc').previousElementSibling.firstElementChild);
+// rings
+const rc=rng(7),Cc=[];for(let i=0;i<250;i++){const a=rc()*6.2832,q=i<125?1:.5;Cc.push([q*Math.cos(a)+gs(rc)*.05,q*Math.sin(a)+gs(rc)*.05])}
+const RL=[km(Cc,2,1).L,Cc.map((_,i)=>i<125?0:1)];
+function rgM(i,b){sel(b);const f=fr(Cc,400,400,[-1.35,1.35,-1.35,1.35]);$('rg').innerHTML=sv(f,dots(Cc,RL[i],f));$('rgo').textContent=i?'Two rings: a human sees two groups instantly.':'K-Means slices both rings with a straight line, so each cluster mixes inner and outer points.'}rgM(0,$('rg').parentNode.previousElementSibling.firstElementChild);
+// quiz
+const Q=[['Which of these has an output (target) column?',['K-Means','Linear regression','Customer segmentation'],1,'Regression is supervised: it predicts a target.'],['What does a centroid represent?',['A random point','The mean of a cluster’s points','The farthest point'],1,'The update step moves each centroid to the mean of its points.'],['WCSS at k = 1 compared with larger k is…',['The highest','The lowest','Always zero'],0,'One centroid means the longest distances, so WCSS is highest.'],['K-Means++ helps by…',['Choosing k','Spreading the starting centroids apart','Removing outliers'],1,'Far-apart starts avoid the random initialisation trap.'],['Why scale features before K-Means?',['It is faster to type','Large-valued features would dominate the distances','It removes noise'],1,'Distances are dominated by the feature with the biggest numbers.']];
+$('qz').innerHTML=Q.map((q,i)=>`<p><b>${i+1}. ${q[0]}</b></p><div class="row">${q[1].map((o,j)=>`<button onclick="qa(${i},${j},this)">${o}</button>`).join('')}</div><p class="out" id="q${i}"></p>`).join('');
+function qa(i,j,b){$('q'+i).textContent=(j==Q[i][2]?'Correct. ':'Not quite. ')+Q[i][3];b.style.borderColor=j==Q[i][2]?'var(--c1)':'var(--c4)'}
+</script></body></html>
