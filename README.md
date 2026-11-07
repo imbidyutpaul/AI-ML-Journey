@@ -11,6 +11,7 @@ This repository will grow as I continue learning. I'll add new notebooks, implem
 | # | Topic | Notebook |
 |---|---|---|
 | 01 | Pandas Basics | [`pandas_in_short.ipynb`](pandas_in_short.ipynb) |
+| 02 | K-Means Clustering | [`kmeans clustering/kmeans clustering.ipynb`](kmeans%20clustering/kmeans%20clustering.ipynb) |
 
 ## Goals
 
